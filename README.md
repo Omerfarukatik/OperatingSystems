@@ -1,1 +1,1 @@
-# OperatingSystems
+# OperatingSystems birinci ödev.
