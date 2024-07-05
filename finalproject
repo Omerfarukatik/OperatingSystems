@@ -1,0 +1,142 @@
+package proje;
+
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.HashMap;
+import java.util.Map;
+
+class FlightReservation {
+    private final Map<String, String> reservations = new HashMap<>();
+    private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock(true);
+
+    public void makeReservation(String seat, String customer) {
+        rwLock.writeLock().lock();
+        try {
+            if (!reservations.containsKey(seat)) {
+                reservations.put(seat, customer);
+                System.out.println("Time: " + System.currentTimeMillis() + " " + customer + " reserved seat " + seat);
+            } else {
+                System.out.println("Time: " + System.currentTimeMillis() + " " + customer + " tried to reserve seat " + seat + ", but it is already reserved by " + reservations.get(seat));
+            }
+        } finally {
+            rwLock.writeLock().unlock();
+        }
+    }
+
+    public void cancelReservation(String seat, String customer) {
+        rwLock.writeLock().lock();
+        try {
+            if (reservations.containsKey(seat) && reservations.get(seat).equals(customer)) {
+                reservations.remove(seat);
+                System.out.println("Time: " + System.currentTimeMillis() + " " + customer + " cancelled reservation for seat " + seat);
+            } else {
+                System.out.println("Time: " + System.currentTimeMillis() + " Seat " + seat + " is not reserved by " + customer);
+            }
+        } finally {
+            rwLock.writeLock().unlock();
+        }
+    }
+
+    public void queryReservation() {
+        rwLock.readLock().lock();
+        try {
+            System.out.println("Time: " + System.currentTimeMillis() + " State of the seats are :");
+            for (int i = 1; i <= 5; i++) {
+                String seat = "1" + (char) ('A' + i - 1);
+                System.out.println("Seat " + seat + " : " + (reservations.containsKey(seat) ? reservations.get(seat) : "0"));
+            }
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+}
+
+class Writer extends Thread {
+    private final FlightReservation reservation;
+    private final String seat;
+    private final String customer;
+    private final boolean isCancel;
+
+    public Writer(FlightReservation reservation, String seat, String customer, boolean isCancel) {
+        this.reservation = reservation;
+        this.seat = seat;
+        this.customer = customer;
+        this.isCancel = isCancel;
+    }
+
+    @Override
+    public void run() {
+        synchronized (reservation) {
+            if (isCancel) {
+                reservation.cancelReservation(seat, customer);
+            } else {
+                reservation.makeReservation(seat, customer);
+            }
+        }
+    }
+}
+
+class Reader extends Thread {
+    private final FlightReservation reservation;
+
+    public Reader(FlightReservation reservation) {
+        this.reservation = reservation;
+    }
+
+    @Override
+    public void run() {
+        synchronized (reservation) {
+            reservation.queryReservation();
+        }
+    }
+}
+
+public class FlightReservationProject {
+    public static void main(String[] args) throws InterruptedException {
+        FlightReservation reservation = new FlightReservation();
+
+        Writer writer1 = new Writer(reservation, "1A", "Writer1", false);
+        Writer writer2 = new Writer(reservation, "1B", "Writer2", false);
+        Writer writer3 = new Writer(reservation, "1A", "Writer3", false);
+        Writer writer4 = new Writer(reservation, "1A", "Writer1", true);
+        Writer writer5 = new Writer(reservation, "1A", "Writer3", false);
+        Writer writer6 = new Writer(reservation, "1C", "Writer3", false);
+
+        Reader reader1 = new Reader(reservation);
+        Reader reader2 = new Reader(reservation);
+        Reader reader3 = new Reader(reservation);
+        Reader reader4 = new Reader(reservation);
+        Reader reader5 = new Reader(reservation);
+        Reader reader6 = new Reader(reservation);
+
+        // Start writer threads
+        writer1.start();
+        writer1.join();
+        reader1.start();
+        reader1.join();
+
+        writer2.start();
+        writer2.join();
+        reader2.start();
+        reader2.join();
+
+        writer3.start();
+        writer3.join();
+        reader3.start();
+        reader3.join();
+
+        writer4.start();
+        writer4.join();
+        reader4.start();
+        reader4.join();
+
+        writer5.start();
+        writer5.join();
+        reader5.start();
+        reader5.join();
+
+        writer6.start();
+        writer6.join();
+        reader6.start();
+        reader6.join();
+    }
+}
